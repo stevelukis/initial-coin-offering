@@ -5,16 +5,10 @@
   "author": "Steve Lukis <20234730+stevelukis@users.noreply.github.com>",
   "license": "MIT",
   "dependencies": {
-    "@nomicfoundation/hardhat-chai-matchers": "^1.0.4",
-    "@nomicfoundation/hardhat-toolbox": "^2.0.0",
     "@nomiclabs/hardhat-ethers": "^2.2.1",
-    "@nomiclabs/hardhat-etherscan": "^3.1.2",
     "@openzeppelin/contracts": "^4.7.3",
-    "@typechain/ethers-v5": "^10.1.1",
     "@typechain/hardhat": "^6.1.4",
     "hardhat": "^2.12.2",
-    "hardhat-gas-reporter": "^1.0.9",
-    "solidity-coverage": "^0.8.2",
     "typechain": "^8.1.1"
   },
   "devDependencies": {
