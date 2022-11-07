@@ -57,7 +57,7 @@ contract ICO is Ownable {
         require(msg.value >= minPurchase && msg.value <= maxPurchase,
             "Ethers should be between minPurchase and maxPurchase");
 
-        uint quantity = price * msg.value;
+        uint256 quantity = msg.value / price;
         require(quantity <= availableTokens, "Not enough tokens left for sale");
 
         sales.push(Sale(msg.sender, quantity));
