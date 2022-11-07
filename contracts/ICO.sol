@@ -75,18 +75,30 @@ contract ICO is Ownable {
         to.transfer(amount);
     }
 
+    function isIcoActive() public view returns (bool) {
+        return end > 0 && block.timestamp < end && availableTokens > 0;
+    }
+
+    function isIcoNotActive() public view returns (bool) {
+        return end == 0;
+    }
+
+    function isIcoEnded() public view returns (bool) {
+        return end > 0 && (block.timestamp >= end || availableTokens == 0);
+    }
+
     modifier icoActive() {
-        require(end > 0 && block.timestamp < end && availableTokens > 0, "ICO should be active.");
+        require(isIcoActive(), "ICO should be active.");
         _;
     }
 
     modifier icoNotActive() {
-        require(end == 0, "ICO shouldn't be active.");
+        require(isIcoNotActive(), "ICO shouldn't be active.");
         _;
     }
 
     modifier icoEnded() {
-        require(end > 0 && (block.timestamp >= end || availableTokens == 0), "ICO should have ended");
+        require(isIcoEnded(), "ICO should have ended");
         _;
     }
 
