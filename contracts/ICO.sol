@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "./FixedERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract ICO is Ownable {
@@ -21,8 +21,9 @@ contract ICO is Ownable {
     uint256 public maxPurchase;
     bool public isReleased = false;
 
-    constructor(string memory _name, string memory _symbol) {
-        token = address(new ERC20(_name, _symbol));
+    constructor(string memory _name, string memory _symbol, uint256 tokenTotalSupply) {
+        FixedERC20 tokenInstance = new FixedERC20(_name, _symbol, tokenTotalSupply);
+        token = address(tokenInstance);
     }
 
     function start(
@@ -34,7 +35,7 @@ contract ICO is Ownable {
     external onlyOwner icoNotActive {
         require(duration > 0, "Duration should be > 0.");
 
-        uint256 totalSupply = ERC20(token).totalSupply();
+        uint256 totalSupply = FixedERC20(token).totalSupply();
         require(_availableTokens > 0 && _availableTokens <= totalSupply, "_availableTokens is not valid.");
 
         require(_minPurchase > 0, "minPurchase is not valid.");
@@ -63,7 +64,7 @@ contract ICO is Ownable {
     }
 
     function release() external onlyOwner icoEnded tokenNotReleased {
-        ERC20 tokenInstance = ERC20(token);
+        FixedERC20 tokenInstance = FixedERC20(token);
         for (uint256 i = 0; i < sales.length; i++) {
             Sale storage sale = sales[i];
             tokenInstance.transfer(sale.investor, sale.quantity);
