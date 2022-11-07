@@ -25,6 +25,13 @@ describe("ICO", function () {
             expect(await ico.isIcoActive()).to.be.true;
         });
 
+        it("Should be reverted if not called by owner", async function () {
+            const { ico, investor } = await loadFixture(deployICOFixture);
+
+            await expect(ico.connect(investor).start(100, 100, 100, 1, 100))
+                .to.be.revertedWith("Ownable: caller is not the owner");
+        });
+
         it("Should be reverted if the duration is not valid", async function () {
             const { ico } = await loadFixture(deployICOFixture);
 
