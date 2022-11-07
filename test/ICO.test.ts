@@ -10,11 +10,51 @@ describe("ICO", function () {
         const [owner, investor]: SignerWithAddress[] = await ethers.getSigners();
 
         // Deploy the contract
-        const ico: Contract = await ICO.deploy("Token", "TOKEN");
+        const ico: Contract = await ICO.deploy("Token", "TOKEN", 100);
         await ico.deployed();
 
         return { ico, owner, investor };
     }
+
+    describe("Start", function () {
+        it("Should run successfully", async function () {
+            const { ico } = await loadFixture(deployICOFixture);
+
+            expect(await ico.isIcoActive()).to.be.false;
+            await ico.start(100, 100, 100, 1, 100);
+            expect(await ico.isIcoActive()).to.be.true;
+        });
+
+        it("Should be reverted if the duration is not valid", async function () {
+            const { ico } = await loadFixture(deployICOFixture);
+
+            await expect(ico.start(0, 100, 100, 1, 100))
+                .to.be.revertedWith("Duration should be > 0.");
+        });
+
+        it("Should be reverted if _availableToken is not valid", async function () {
+            const { ico } = await loadFixture(deployICOFixture);
+
+            await expect(ico.start(100, 100, 0, 1, 100))
+                .to.be.revertedWith("_availableTokens is not valid.");
+            await expect(ico.start(100, 100, 100000, 1, 100))
+                .to.be.revertedWith("_availableTokens is not valid.");
+        });
+
+        it("Should be reverted if _minPurchase is not valid", async function () {
+            const { ico } = await loadFixture(deployICOFixture);
+            await expect(ico.start(100, 100, 100, 0, 100))
+                .to.be.revertedWith("minPurchase is not valid.");
+        });
+
+        it("Should be reverted if _maxPurchase is not valid", async function () {
+            const { ico } = await loadFixture(deployICOFixture);
+            await expect(ico.start(100, 100, 100, 1, 0))
+                .to.be.revertedWith("maxPurchase is not valid.");
+            await expect(ico.start(100, 100, 100, 1, 101))
+                .to.be.revertedWith("maxPurchase is not valid.");
+        });
+    });
 
     describe("Whitelist", function () {
         it("Should whitelist successfully", async function () {
