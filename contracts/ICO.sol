@@ -57,10 +57,11 @@ contract ICO is Ownable {
 
         uint256 quantity = msg.value / price;
         require(quantity >= minPurchase && quantity <= maxPurchase,
-            "Ethers should be between minPurchase and maxPurchase");
+            "Number of tokens purchased should be between minPurchase and maxPurchase");
         require(quantity <= availableTokens, "Not enough tokens left for sale");
 
         sales.push(Sale(msg.sender, quantity));
+        availableTokens = availableTokens - quantity;
     }
 
     function release() external onlyOwner icoEnded tokenNotReleased {
