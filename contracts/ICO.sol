@@ -54,11 +54,11 @@ contract ICO is Ownable {
 
     function buy() payable external onlyInvestors icoActive {
         require(msg.value % price == 0, "Ethers sent should be a multiple of price");
-        require(msg.value >= minPurchase && msg.value <= maxPurchase,
-            "Ethers should be between minPurchase and maxPurchase");
 
         uint256 quantity = msg.value / price;
-        require(quantity <= availableTokens, "Not enough tokens left for sale");
+        require(quantity >= minPurchase && quantity <= maxPurchase,
+            "Number of tokens purchased should be between minPurchase and maxPurchase");
+        require(quantity > availableTokens, "Not enough tokens left for sale");
 
         sales.push(Sale(msg.sender, quantity));
     }
