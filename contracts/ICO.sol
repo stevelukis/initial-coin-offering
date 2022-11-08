@@ -33,13 +33,13 @@ contract ICO is Ownable {
         uint256 _minPurchase,
         uint256 _maxPurchase)
     external onlyOwner icoNotActive {
-        require(duration > 0, "Duration should be > 0.");
+        require(duration > 0, "Duration should be > 0");
 
         uint256 totalSupply = FixedERC20(token).totalSupply();
-        require(_availableTokens > 0 && _availableTokens <= totalSupply, "_availableTokens is not valid.");
+        require(_availableTokens > 0 && _availableTokens <= totalSupply, "_availableTokens is not valid");
 
-        require(_minPurchase > 0, "minPurchase is not valid.");
-        require(_maxPurchase > 0 && _maxPurchase <= _availableTokens, "maxPurchase is not valid.");
+        require(_minPurchase > 0, "minPurchase is not valid");
+        require(_maxPurchase > 0 && _maxPurchase <= _availableTokens, "maxPurchase is not valid");
 
         end = duration + block.timestamp;
         price = _price;
@@ -89,12 +89,12 @@ contract ICO is Ownable {
     }
 
     modifier icoActive() {
-        require(isIcoActive(), "ICO should be active.");
+        require(isIcoActive(), "ICO should be active");
         _;
     }
 
     modifier icoNotActive() {
-        require(isIcoNotActive(), "ICO shouldn't be active.");
+        require(isIcoNotActive(), "ICO shouldn't be active");
         _;
     }
 
@@ -114,7 +114,7 @@ contract ICO is Ownable {
     }
 
     modifier onlyInvestors() {
-        require(investors[msg.sender], "Only investors can call this function.");
+        require(investors[msg.sender], "Only investors can call this function");
         _;
     }
 }
