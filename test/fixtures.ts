@@ -2,9 +2,9 @@ import { Contract, ContractFactory } from "ethers";
 import { ethers } from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { FixedERC20, ICO } from "../typechain-types";
-import { sleep } from "./utils";
+import { time } from "@nomicfoundation/hardhat-network-helpers";
 
-const DURATION = 4;
+const DURATION = 100;
 const PRICE = 5;
 const AVAILABLE_TOKENS = 100;
 const MIN_PURCHASE = 5;
@@ -51,7 +51,7 @@ export async function afterBuyFixture() {
 
 export async function endICOFixture() {
     const deployedUtils = await afterBuyFixture();
-    await sleep(DURATION);
+    await time.increase(DURATION);
     return deployedUtils;
 }
 
