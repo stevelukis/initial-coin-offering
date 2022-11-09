@@ -10,6 +10,13 @@ const sleep = async (durationInSec: number) => {
 }
 
 describe("ICO", function () {
+    const DURATION = 4;
+    const PRICE = 5;
+    const AVAILABLE_TOKENS = 100;
+    const MIN_PURCHASE = 5;
+    const MAX_PURCHASE = 100;
+    const value = MIN_PURCHASE * PRICE;
+
     async function deployICOFixture() {
         const ICO: ContractFactory = await ethers.getContractFactory("ICO");
         const [owner, investor, nonInvestor]: SignerWithAddress[] = await ethers.getSigners();
@@ -22,6 +29,36 @@ describe("ICO", function () {
         const token: FixedERC20 = await ethers.getContractAt("FixedERC20", await ico.token());
 
         return { ico, owner, investor, nonInvestor, token };
+    }
+
+    async function startICOFixture() {
+        const deployedUtils = await deployICOFixture();
+        const { ico, investor } = deployedUtils;
+
+        await ico.start(DURATION, PRICE, AVAILABLE_TOKENS, MIN_PURCHASE, MAX_PURCHASE);
+        await ico.whitelist(investor.address);
+
+        return deployedUtils;
+    }
+
+    async function afterBuyFixture() {
+        const deployedUtils = await startICOFixture();
+        const { ico, investor } = deployedUtils;
+        await ico.connect(investor).buy({ value: MIN_PURCHASE * PRICE });
+        return deployedUtils;
+    }
+
+    async function endICOFixture() {
+        const deployedUtils = await afterBuyFixture();
+        await sleep(DURATION);
+        return deployedUtils;
+    }
+
+    const tokenReleasedFixture = async () => {
+        const deployedUtils = await endICOFixture();
+        const { ico } = deployedUtils;
+        await ico.release();
+        return deployedUtils;
     }
 
     describe("Start", function () {
@@ -91,23 +128,8 @@ describe("ICO", function () {
     });
 
     describe("Buy", function () {
-        const PRICE = 5;
-        const AVAILABLE_TOKENS = 100;
-        const MIN_PURCHASE = 5;
-        const MAX_PURCHASE = 100;
-
-        async function preBuyFixture() {
-            const deployedUtils = await deployICOFixture();
-            const { ico, investor } = deployedUtils;
-
-            await ico.start(100, PRICE, AVAILABLE_TOKENS, MIN_PURCHASE, MAX_PURCHASE);
-            await ico.whitelist(investor.address);
-
-            return deployedUtils
-        }
-
         it("Should run successfully", async function () {
-            const { ico, investor } = await loadFixture(preBuyFixture);
+            const { ico, investor } = await loadFixture(startICOFixture);
 
             const quantity = MIN_PURCHASE;
             const value = quantity * PRICE;
@@ -119,19 +141,19 @@ describe("ICO", function () {
         });
 
         it("Should be reverted if not called by investors", async function () {
-            const { ico, nonInvestor } = await loadFixture(preBuyFixture);
+            const { ico, nonInvestor } = await loadFixture(startICOFixture);
             await expect(ico.connect(nonInvestor).buy({ value: PRICE }))
                 .to.be.revertedWith("Only investors can call this function");
         });
 
         it("Should be reverted if not paying the multiple of the price", async function () {
-            const { ico, investor } = await loadFixture(preBuyFixture);
+            const { ico, investor } = await loadFixture(startICOFixture);
             await expect(ico.connect(investor).buy({ value: PRICE + 1 }))
                 .to.be.revertedWith("Ethers sent should be a multiple of price");
         });
 
         it("Should be reverted if not buying between the minimum and maximum purchase", async function () {
-            const { ico, investor } = await loadFixture(preBuyFixture);
+            const { ico, investor } = await loadFixture(startICOFixture);
             await expect(ico.connect(investor).buy({ value: (MIN_PURCHASE - 1) * PRICE }))
                 .to.be.revertedWith("Number of tokens purchased should be between minPurchase and maxPurchase");
             await expect(ico.connect(investor).buy({ value: (MAX_PURCHASE + 1) * PRICE }))
@@ -139,7 +161,7 @@ describe("ICO", function () {
         });
 
         it("Should be reverted if quantity is more that available tokens", async function () {
-            const { ico, investor } = await loadFixture(preBuyFixture);
+            const { ico, investor } = await loadFixture(startICOFixture);
 
             // Purchase almost all the available tokens first
             await ico.connect(investor).buy({ value: (MAX_PURCHASE - 1) * PRICE });
@@ -158,51 +180,60 @@ describe("ICO", function () {
     });
 
     describe("Release", function () {
-        const DURATION = 3;
-        const PRICE = 5;
-        const AVAILABLE_TOKENS = 100;
-        const MIN_PURCHASE = 5;
-        const MAX_PURCHASE = 100;
-
-        async function startICOFixture() {
-            const deployedUtils = await loadFixture(deployICOFixture);
-            const { ico, investor } = deployedUtils;
-            await ico.whitelist(investor.address);
-            await ico.start(DURATION, PRICE, AVAILABLE_TOKENS, MIN_PURCHASE, MAX_PURCHASE);
-            await ico.connect(investor).buy({ value: MIN_PURCHASE * PRICE });
-            return deployedUtils;
-        }
-
-        async function startAndEndICOFixture() {
-            const deployedUtils = await loadFixture(startICOFixture);
-            await sleep(DURATION);
-            return deployedUtils;
-        }
-
         it("Should run successfully", async function () {
-            const { ico, investor, token } = await loadFixture(startAndEndICOFixture);
+            const { ico, investor, token } = await loadFixture(endICOFixture);
             await ico.release();
             expect(await token.balanceOf(investor.address))
                 .to.be.equal(MIN_PURCHASE);
         });
 
         it("Should be reverted if not called by the owner", async function () {
-            const { ico, investor } = await loadFixture(startAndEndICOFixture);
+            const { ico, investor } = await loadFixture(endICOFixture);
             await expect(ico.connect(investor).release())
                 .to.be.revertedWith("Ownable: caller is not the owner");
         });
 
         it("Should be reverted if token have been released", async function () {
-            const { ico } = await loadFixture(startAndEndICOFixture);
+            const { ico } = await loadFixture(endICOFixture);
             await ico.release()
             await expect(ico.release())
                 .to.be.revertedWith("Token should not have been released");
         });
 
         it("Should be reverted if ICO haven't ended yet", async function () {
-            const { ico } = await loadFixture(startICOFixture);
+            const { ico } = await loadFixture(afterBuyFixture);
             await expect(ico.release())
                 .to.be.revertedWith("ICO should have ended");
         });
+    });
+
+    describe.only("Withdraw", function () {
+
+        it("Should run successfully", async function () {
+            const { ico, nonInvestor } = await loadFixture(tokenReleasedFixture);
+            const initialBalance = await nonInvestor.getBalance();
+            await ico.withdraw(nonInvestor.address, value);
+            const finalBalance = await nonInvestor.getBalance();
+            expect(finalBalance).to.be.equal(initialBalance.add(value));
+        });
+
+        it("Should be reverted if not called by owner", async function () {
+            const { ico, nonInvestor } = await loadFixture(tokenReleasedFixture);
+            await expect(ico.connect(nonInvestor).withdraw(nonInvestor.address, value))
+                .to.be.revertedWith("Ownable: caller is not the owner");
+        });
+
+        it("Should be reverted if ICO haven't ended yet", async function () {
+            const { ico, nonInvestor } = await loadFixture(afterBuyFixture);
+            await expect(ico.withdraw(nonInvestor.address, value))
+                .to.be.revertedWith("ICO should have ended");
+        });
+
+        it("Should be reverted if token haven't been released", async function () {
+            const { ico, nonInvestor } = await loadFixture(endICOFixture);
+            await expect(ico.withdraw(nonInvestor.address, value))
+                .to.be.revertedWith("Token should have been released");
+        });
+
     });
 })
