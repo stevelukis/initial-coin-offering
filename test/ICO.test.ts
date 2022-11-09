@@ -3,6 +3,11 @@ import { Contract, ContractFactory } from "ethers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
+import { FixedERC20, ICO } from "../typechain-types";
+
+const sleep = async (durationInSec: number) => {
+    await new Promise(resolve => setTimeout(resolve, durationInSec * 1000))
+}
 
 describe("ICO", function () {
     async function deployICOFixture() {
@@ -10,10 +15,13 @@ describe("ICO", function () {
         const [owner, investor, nonInvestor]: SignerWithAddress[] = await ethers.getSigners();
 
         // Deploy the contract
-        const ico: Contract = await ICO.deploy("Token", "TOKEN", 100);
-        await ico.deployed();
+        let icoContract: Contract = await ICO.deploy("Token", "TOKEN", 100);
+        await icoContract.deployed();
 
-        return { ico, owner, investor, nonInvestor };
+        let ico: ICO = await ethers.getContractAt("ICO", icoContract.address);
+        const token: FixedERC20 = await ethers.getContractAt("FixedERC20", await ico.token());
+
+        return { ico, owner, investor, nonInvestor, token };
     }
 
     describe("Start", function () {
@@ -136,7 +144,7 @@ describe("ICO", function () {
             // Purchase almost all the available tokens first
             await ico.connect(investor).buy({ value: (MAX_PURCHASE - 1) * PRICE });
 
-            await expect(ico.connect(investor).buy({value: MIN_PURCHASE * PRICE}))
+            await expect(ico.connect(investor).buy({ value: MIN_PURCHASE * PRICE }))
                 .to.be.revertedWith("Not enough tokens left for sale");
         });
 
@@ -147,5 +155,54 @@ describe("ICO", function () {
             await expect(ico.connect(investor).buy({ value: PRICE }))
                 .to.be.revertedWith("ICO should be active");
         });
-    })
+    });
+
+    describe("Release", function () {
+        const DURATION = 3;
+        const PRICE = 5;
+        const AVAILABLE_TOKENS = 100;
+        const MIN_PURCHASE = 5;
+        const MAX_PURCHASE = 100;
+
+        async function startICOFixture() {
+            const deployedUtils = await loadFixture(deployICOFixture);
+            const { ico, investor } = deployedUtils;
+            await ico.whitelist(investor.address);
+            await ico.start(DURATION, PRICE, AVAILABLE_TOKENS, MIN_PURCHASE, MAX_PURCHASE);
+            await ico.connect(investor).buy({ value: MIN_PURCHASE * PRICE });
+            return deployedUtils;
+        }
+
+        async function startAndEndICOFixture() {
+            const deployedUtils = await loadFixture(startICOFixture);
+            await sleep(DURATION);
+            return deployedUtils;
+        }
+
+        it("Should run successfully", async function () {
+            const { ico, investor, token } = await loadFixture(startAndEndICOFixture);
+            await ico.release();
+            expect(await token.balanceOf(investor.address))
+                .to.be.equal(MIN_PURCHASE);
+        });
+
+        it("Should be reverted if not called by the owner", async function () {
+            const { ico, investor } = await loadFixture(startAndEndICOFixture);
+            await expect(ico.connect(investor).release())
+                .to.be.revertedWith("Ownable: caller is not the owner");
+        });
+
+        it("Should be reverted if token have been released", async function () {
+            const { ico } = await loadFixture(startAndEndICOFixture);
+            await ico.release()
+            await expect(ico.release())
+                .to.be.revertedWith("Token should not have been released");
+        });
+
+        it("Should be reverted if ICO haven't ended yet", async function () {
+            const { ico } = await loadFixture(startICOFixture);
+            await expect(ico.release())
+                .to.be.revertedWith("ICO should have ended");
+        });
+    });
 })
